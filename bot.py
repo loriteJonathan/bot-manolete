@@ -25,8 +25,8 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 
 # --- TUS CLAVES DESDE RENDER ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM")
-API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "TU_API_KEY_AEMET_AQUI") 
+TOKEN_TELEGRAM = os.environ.get("TELEGRAM_TOKEN")
+API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "") 
 # -------------------------------
 
 logging.basicConfig(
@@ -68,7 +68,7 @@ async def buscar_en_youtube(query):
 
 async def comando_musica(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("⚠️ Escribe qué quieres buscar. Ejemplo: `/musica paco de lucia`")
+        await update.message.reply_text("⚠️️ Escribe qué quieres buscar. Ejemplo: `/musica paco de lucia`")
         return
     query = " ".join(context.args)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")

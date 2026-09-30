@@ -14,6 +14,7 @@ def run_web_server():
     server.serve_forever()
 
 threading.Thread(target=run_web_server, daemon=True).start()
+
 import logging
 import requests
 import urllib.parse
@@ -22,11 +23,11 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
-# --- TUS CLAVES OFICIALES ---
-GROQ_API_KEY = "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"
-TOKEN_TELEGRAM = "2096960353:AAFhxsgx013hElgdRUMZEf81eA0tQ2Mph-o"
-API_KEY_AEMET = "TU_API_KEY_AEMET_AQUI" 
-# ---------------------------
+# --- TUS CLAVES DESDE RENDER ---
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM")
+API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "TU_API_KEY_AEMET_AQUI") 
+# -------------------------------
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -62,7 +63,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- BUSCADOR SEGURO DE YOUTUBE ---
 async def buscar_en_youtube(query):
-    # Genera un enlace directo a la página de búsqueda oficial de YouTube para evitar vídeos caídos
     url_busqueda = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
     return f"Resultados para: {query}", url_busqueda
 

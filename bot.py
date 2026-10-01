@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 # --- CREDENCIALES ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM", "").strip().replace("\n", "").replace("\r", "")
-
 API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 
 # --- SEGURIDAD (GRUPOS PERMITIDOS) ---
@@ -83,16 +82,22 @@ async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     url_imagen = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_usuario)}"
 
-    try:
-        img_response = requests.get(url_imagen, timeout=30)
-        if img_response.status_code == 200:
-            photo_bytes = io.BytesIO(img_response.content)
-            photo_bytes.name = 'manolete.jpg'
-            await update.message.reply_photo(photo=photo_bytes, caption=f"🎨 *{prompt_usuario}*", parse_mode="Markdown")
-        else:
-            await update.message.reply_text("⚠️ No se pudo generar la imagen.")
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ Error: {str(e)}")
+    intentos = 3
+    for intento in range(intentos):
+        try:
+            img_response = requests.get(url_imagen, timeout=60)
+            if img_response.status_code == 200:
+                photo_bytes = io.BytesIO(img_response.content)
+                photo_bytes.name = 'manolete.jpg'
+                await update.message.reply_photo(photo=photo_bytes, caption=f"🎨 *{prompt_usuario}*", parse_mode="Markdown")
+                return
+        except requests.exceptions.Timeout:
+            if intento == intentos - 1:
+                await update.message.reply_text("⚠️ El servicio de imágenes está tardando demasiado en responder. Prueba otra vez en un minuto.")
+                return
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ Error: {str(e)}")
+            return
 
 async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_chat_permitido(update):

@@ -22,7 +22,7 @@ TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM")
 API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 
 # --- SEGURIDAD (GRUPOS PERMITIDOS) ---
-GRUPOS_PERMITIDOS = [-1770410209]
+GRUPOS_PERMITIDOS = [-1001770410209]
 
 def es_chat_permitido(update: Update) -> bool:
     if not update.effective_chat:

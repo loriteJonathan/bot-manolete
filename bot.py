@@ -30,8 +30,7 @@ API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 # -------------------------------
 
 # --- CONFIGURACIÓN DE SEGURIDAD (GRUPOS PERMITIDOS) ---
-# Pon aquí los IDs numéricos de tus grupos (suelen empezar por '-100').
-GRUPOS_PERMITIDOS = [-1001234567890] 
+GRUPOS_PERMITIDOS = [-1770410209] 
 # -----------------------------------------------------
 
 logging.basicConfig(

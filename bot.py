@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # --- CREDENCIALES ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM")
+TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM", "").strip().replace("\n", "").replace("\r", "")
+
 API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 
 # --- SEGURIDAD (GRUPOS PERMITIDOS) ---

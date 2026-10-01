@@ -25,9 +25,14 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 
 # --- TUS CLAVES DESDE RENDER ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-TOKEN_TELEGRAM = os.environ.get("TELEGRAM_TOKEN")
+TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM")
 API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "") 
 # -------------------------------
+
+# --- CONFIGURACIÓN DE SEGURIDAD (GRUPOS PERMITIDOS) ---
+# Pon aquí los IDs numéricos de tus grupos (suelen empezar por '-100').
+GRUPOS_PERMITIDOS = [-1001234567890] 
+# -----------------------------------------------------
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -53,30 +58,41 @@ def obtener_modelo_disponible():
 
 MODELO_ACTIVO = obtener_modelo_disponible()
 
+def es_chat_permitido(update: Update) -> bool:
+    if not update.effective_chat:
+        return False
+    return update.effective_chat.id in GRUPOS_PERMITIDOS
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_chat_permitido(update):
+        return
     await update.message.reply_text(
-        f"🤖 **MANOLETE (Búsqueda Segura)**\n\n"
-        f"💬 **Para charlar o pedir música:** Escríbeme normal o usa `/musica [tema]`\n"
-        f"🎨 **Para generar imágenes:** Usa `/imagen [descripción]`\n"
-        f"🌧️ **Precipitaciones (AEMET):** Usa `/lluvia [municipio]`"
+        f"🤖 **MANOLETE (Asistente IA Avanzado & Programador)**\n\n"
+        f"💬 **Pregúntame lo que quieras o pídeme código:** Te responderé al detalle.\n"
+        f"🎵 `/musica [tema]` - Busca enlaces en YouTube\n"
+        f"🎨 `/imagen [descripción]` - Genera imágenes\n"
+        f"🌧 `/lluvia [municipio]` - Datos de AEMET"
     )
 
-# --- BUSCADOR SEGURO DE YOUTUBE ---
 async def buscar_en_youtube(query):
     url_busqueda = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
     return f"Resultados para: {query}", url_busqueda
 
 async def comando_musica(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_chat_permitido(update):
+        return
     if not context.args:
-        await update.message.reply_text("⚠️️ Escribe qué quieres buscar. Ejemplo: `/musica paco de lucia`")
+        await update.message.reply_text("⚠️ Escribe qué quieres buscar. Ejemplo: `/musica paco de lucia`")
         return
     query = " ".join(context.args)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
     titulo, enlace = await buscar_en_youtube(query)
-    await update.message.reply_text(f"🎵 **{titulo}**\n\n🔗 Haz clic para ver los vídeos disponibles:\n{enlace}")
+    await update.message.reply_text(f"🎵 **{titulo}**\n\n🔗 Enlaces disponibles:\n{enlace}")
 
 async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_chat_permitido(update):
+        return
     if not context.args:
         await update.message.reply_text("⚠️ Escribe qué quieres dibujar. Ejemplo: `/imagen un paisaje`")
         return
@@ -99,11 +115,13 @@ async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
         else:
-            await update.message.reply_text("⚠️ No se pudo generar la imagen.")
+            await update.message.reply_text("⚠ No se pudo generar la imagen.")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error al procesar la imagen: {str(e)}")
 
 async def obtener_precipitaciones_aemet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_chat_permitido(update):
+        return
     if not context.args:
         await update.message.reply_text("⚠️ Uso correcto: `/lluvia [nombre del municipio]`")
         return
@@ -153,11 +171,14 @@ async def obtener_precipitaciones_aemet(update: Update, context: ContextTypes.DE
             else:
                 await update.message.reply_text("⚠️ Error en la respuesta de AEMET.")
         else:
-            await update.message.reply_text("⚠️ Error de conexión con AEMET (revisa tu API Key).")
+            await update.message.reply_text("⚠️ Error de conexión con AEMET.")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Excepción: {str(e)}")
 
 async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_chat_permitido(update):
+        return
+
     texto_usuario = update.message.text
     texto_lower = texto_usuario.lower()
     
@@ -166,7 +187,7 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query_limpia = texto_usuario.replace("búscame", "").replace("un enlace", "").replace("de YouTube", "").replace("en YouTube", "").replace("canción", "").strip()
         
         titulo, enlace = await buscar_en_youtube(query_limpia if len(query_limpia) > 3 else texto_usuario)
-        await update.message.reply_text(f"🎵 **{titulo}**\n\n🔗 Haz clic para ver los vídeos disponibles:\n{enlace}")
+        await update.message.reply_text(f"🎵 **{titulo}**\n\n🔗 Enlaces disponibles:\n{enlace}")
         return
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
@@ -185,19 +206,20 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
             {
                 "role": "system", 
                 "content": (
-                    f"Eres MANOLETE, un asistente de inteligencia artificial útil en un grupo de Telegram. "
-                    f"Responde siempre en español de forma natural. "
+                    f"Eres MANOLETE, un asistente de inteligencia artificial avanzado, experto en programación, desarrollo de software, análisis técnico y resolución de problemas complejos. "
+                    f"Responde siempre en español de forma natural, precisa y detallada. "
+                    f"Si te piden código de programación, escribe scripts limpios, funcionales y bien comentados utilizando bloques de código en Markdown. "
                     f"INFORMACIÓN TEMPORAL EN TIEMPO REAL: En este preciso instante es {fecha_hora_actual}."
                 )
             },
             {"role": "user", "content": texto_usuario}
         ],
-        "max_tokens": 800,  
+        "max_tokens": 2048,  
         "temperature": 0.7
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response = requests.post(url, json=payload, headers=headers, timeout=45)
         if response.status_code == 200:
             res_json = response.json()
             respuesta_texto = res_json['choices'][0]['message']['content']
@@ -217,5 +239,5 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("lluvia", obtener_precipitaciones_aemet))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
 
-    print(f"MANOLETE seguro activo usando: {MODELO_ACTIVO}")
+    print(f"MANOLETE experto activo usando: {MODELO_ACTIVO}")
     app.run_polling()

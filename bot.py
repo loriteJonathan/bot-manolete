@@ -91,23 +91,26 @@ async def responder_ia(update: Update, context):
     texto_usuario = update.message.text
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
-    ahora = datetime.now().strftime("%A, %d de %B de %Y a las %H:%M:%S")
-
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
     
+    # Usamos el modelo actual y estable de Groq
     payload = {
-        "model": "llama3-70b-8192",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {
                 "role": "system", 
-                "content": f"Eres MANOLETE, un asistente de IA experto en programación y tecnología. Responde siempre en español. Fecha actual: {ahora}."
+                "content": "Eres MANOLETE, un asistente de IA experto en tecnología y programación. Responde siempre en español de forma clara."
             },
-            {"role": "user", "content": texto_usuario}
-        ]
+            {
+                "role": "user", 
+                "content": texto_usuario
+            }
+        ],
+        "temperature": 0.7
     }
 
     try:
@@ -117,8 +120,10 @@ async def responder_ia(update: Update, context):
             respuesta_texto = res_json['choices'][0]['message']['content']
             await update.message.reply_text(respuesta_texto)
         else:
+            logger.error(f"Groq error details: {response.text}")
             await update.message.reply_text(f"⚠️ Error de API Groq ({response.status_code})")
     except Exception as e:
+        logger.error(f"Excepción Groq: {e}")
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 telegram_app.add_handler(CommandHandler("start", start))
@@ -126,11 +131,10 @@ telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
 telegram_app.add_handler(CommandHandler("musica", comando_musica))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
 
-# Inicializar la aplicación de Telegram para que procese los updates correctamente
+# Inicializar la aplicación de Telegram
 async def inicializar_bot():
     await telegram_app.initialize()
 
-# Ejecutar la inicialización en el arranque de Gunicorn/Flask
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(inicializar_bot())
@@ -152,7 +156,6 @@ def webhook():
         json_update = request.get_json(force=True)
         update = Update.de_json(json_update, telegram_app.bot)
         
-        # Procesar el update de forma asíncrona dentro del bucle de eventos
         async def procesar():
             await telegram_app.process_update(update)
 

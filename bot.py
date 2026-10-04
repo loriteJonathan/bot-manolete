@@ -87,9 +87,9 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
-    # Payload minimalista para evitar cualquier rechazo de la API de Groq
+    # Payload actualizado con el modelo activo de Groq
     payload = {
-        "model": "llama3-8b-8192",
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "user", "content": texto_usuario}
         ]

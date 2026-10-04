@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -31,40 +32,11 @@ def es_chat_permitido(update: Update) -> bool:
 
 # --- APLICACIÓN FLASK Y TELEGRAM ---
 app_flask = Flask(__name__)
-telegram_app = None
 
-async def setup_telegram():
-    global telegram_app
-    if not telegram_app:
-        telegram_app = Application.builder().token(TOKEN_TELEGRAM).updater(None).build()
-        
-        telegram_app.add_handler(CommandHandler("start", start))
-        telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
-        telegram_app.add_handler(CommandHandler("musica", comando_musica))
-        telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
-        
-        await telegram_app.initialize()
+# Construir la aplicación de Telegram
+telegram_app = Application.builder().token(TOKEN_TELEGRAM).build()
 
-@app_flask.route('/')
-def home():
-    return "Bot Manolete is running via Webhook!"
-
-@app_flask.route(f'/{TOKEN_TELEGRAM}', methods=['POST'])
-def webhook():
-    try:
-        json_update = request.get_json(force=True)
-        update = Update.de_json(json_update, telegram_app.bot)
-        
-        # Ejecutar el update de forma asíncrona en el bucle de eventos
-        import asyncio
-        asyncio.run(telegram_app.process_update(update))
-        
-        return "OK", 200
-    except Exception as e:
-        logger.error(f"Error procesando update: {e}")
-        return "Error", 500
-
-# --- FUNCIONES DEL BOT ---
+# Registrar manejadores
 async def start(update: Update, context):
     if not es_chat_permitido(update):
         return
@@ -72,8 +44,7 @@ async def start(update: Update, context):
         "🤖 ¡Hola! Soy **MANOLETE**, tu asistente de IA avanzado y programador.\n\n"
         "Pregúntame lo que necesites o usa:\n"
         "🎵 `/musica [tema]`\n"
-        "🎨 `/imagen [descripción]`\n"
-        "🌧 `/lluvia [municipio]`"
+        "🎨 `/imagen [descripción]`"
     )
 
 async def buscar_en_youtube(query):
@@ -102,22 +73,16 @@ async def crear_imagen(update: Update, context):
     
     url_imagen = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_usuario)}"
 
-    intentos = 3
-    for intento in range(intentos):
-        try:
-            img_response = requests.get(url_imagen, timeout=60)
-            if img_response.status_code == 200:
-                photo_bytes = io.BytesIO(img_response.content)
-                photo_bytes.name = 'manolete.jpg'
-                await update.message.reply_photo(photo=photo_bytes, caption=f"🎨 *{prompt_usuario}*", parse_mode="Markdown")
-                return
-        except requests.exceptions.Timeout:
-            if intento == intentos - 1:
-                await update.message.reply_text("⚠️ El servicio de imágenes está tardando demasiado en responder. Prueba otra vez en un minuto.")
-                return
-        except Exception as e:
-            await update.message.reply_text(f"⚠️ Error: {str(e)}")
+    try:
+        img_response = requests.get(url_imagen, timeout=60)
+        if img_response.status_code == 200:
+            photo_bytes = io.BytesIO(img_response.content)
+            photo_bytes.name = 'manolete.jpg'
+            await update.message.reply_photo(photo=photo_bytes, caption=f"🎨 *{prompt_usuario}*", parse_mode="Markdown")
             return
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Error generando imagen: {str(e)}")
+        return
 
 async def responder_ia(update: Update, context):
     if not es_chat_permitido(update):
@@ -156,20 +121,46 @@ async def responder_ia(update: Update, context):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
-# Configurar el Webhook en Telegram al arrancar la app Flask
-import asyncio
-with app_flask.app_context():
-    asyncio.run(setup_telegram())
-    # Obtener la URL pública de tu servicio en Render automáticamente o configurarla
-    # Render suele inyectar la URL o puedes usar la dirección de tu web service.
-    # Como Flask necesita saber a dónde apuntar, configuramos el webhook usando requests:
-    # (Asegúrate de cambiar 'tu-servicio.onrender.com' por tu dominio real de Render)
-    # Ejemplo: RENDER_EXTERNAL_URL es una variable que Render proporciona automáticamente.
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
+telegram_app.add_handler(CommandHandler("musica", comando_musica))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
+
+# Usamos el sistema nativo de webhook con bot nativo de python-telegram-bot
+# Arrancamos la escucha por webhook de forma limpia con Flask
+@app_flask.route('/')
+def home():
+    return "Bot Manolete is running perfectly!"
+
+@app_flask.route(f'/{TOKEN_TELEGRAM}', methods=['POST'])
+def webhook():
+    try:
+        json_update = request.get_json(force=True)
+        update = Update.de_json(json_update, telegram_app.bot)
+        
+        # Encolar el update de forma nativa sin romper bucles de eventos
+        telegram_app.update_queue.put_nowait(update)
+        return "OK", 200
+    except Exception as e:
+        logger.error(f"Error en webhook: {e}")
+        return "Error", 500
+
+def run_telegram_bot():
     url_render = os.environ.get("RENDER_EXTERNAL_URL")
     if url_render:
         webhook_url = f"{url_render}/{TOKEN_TELEGRAM}"
+        # Forzar establecimiento del Webhook en Telegram al iniciar
         requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/setWebhook?url={webhook_url}")
+        logger.info(f"Webhook registrado automáticamente en: {webhook_url}")
+
+    telegram_app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        webhook_url=f"{url_render}/{TOKEN_TELEGRAM}" if url_render else None,
+        drop_pending_updates=True
+    )
 
 if __name__ == '__main__':
+    # Si se ejecuta directamente
     port = int(os.environ.get("PORT", 10000))
     app_flask.run(host='0.0.0.0', port=port)

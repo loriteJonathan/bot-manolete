@@ -27,7 +27,6 @@ GRUPOS_PERMITIDOS = [-1001770410209]
 def es_chat_permitido(update: Update) -> bool:
     if not update.effective_chat:
         return False
-    # Permite chats privados (tipo 'private') o el grupo autorizado
     if update.effective_chat.type == 'private':
         return True
     return update.effective_chat.id in GRUPOS_PERMITIDOS
@@ -114,17 +113,16 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Content-Type": "application/json"
     }
     
+    # Payload simplificado para evitar errores 400
     payload = {
         "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "system", 
-                "content": f"Eres MANOLETE, un asistente de IA experto en programación y tecnología. Responde siempre en español de forma precisa. Fecha actual: {ahora}."
+                "content": f"Eres MANOLETE, un asistente de IA experto en programación y tecnología. Responde siempre en español. Fecha actual: {ahora}."
             },
             {"role": "user", "content": texto_usuario}
-        ],
-        "max_tokens": 2048,
-        "temperature": 0.7
+        ]
     }
 
     try:
@@ -139,10 +137,8 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 def main():
-    # Iniciar servidor web en segundo plano para Render
     threading.Thread(target=run_web_server, daemon=True).start()
 
-    # Construir aplicación de Telegram
     app = ApplicationBuilder().token(TOKEN_TELEGRAM).build()
 
     app.add_handler(CommandHandler("start", start))

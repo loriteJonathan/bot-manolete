@@ -87,19 +87,12 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
+    # Payload minimalista para evitar cualquier rechazo de la API de Groq
     payload = {
         "model": "llama3-8b-8192",
         "messages": [
-            {
-                "role": "system", 
-                "content": "Eres MANOLETE, un asistente de IA experto en tecnología y programación. Responde siempre en español de forma clara."
-            },
-            {
-                "role": "user", 
-                "content": texto_usuario
-            }
-        ],
-        "temperature": 0.7
+            {"role": "user", "content": texto_usuario}
+        ]
     }
 
     try:
@@ -109,7 +102,6 @@ async def responder_ia(update: Update, context):
             respuesta_texto = res_json['choices'][0]['message']['content']
             await update.message.reply_text(respuesta_texto)
         else:
-            # Esto imprimirá el error exacto en los logs de Render para ver qué pasa
             logger.error(f"GROQ ERROR RESPUESTA: Status {response.status_code} - Body: {response.text}")
             await update.message.reply_text(f"⚠️ Error de API Groq ({response.status_code})")
     except Exception as e:

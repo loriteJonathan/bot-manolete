@@ -1,9 +1,8 @@
 import os
 import logging
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
+from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 import requests
 import urllib.parse
 import io
@@ -19,7 +18,6 @@ logger = logging.getLogger(__name__)
 # --- CREDENCIALES ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 TOKEN_TELEGRAM = "2096960353:AAEwe0Hp9gE0PpX3EaHUvFDdzVRDNuTYjSw"
-API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 
 # --- SEGURIDAD (GRUPOS PERMITIDOS) ---
 GRUPOS_PERMITIDOS = [-1001770410209]
@@ -31,20 +29,43 @@ def es_chat_permitido(update: Update) -> bool:
         return True
     return update.effective_chat.id in GRUPOS_PERMITIDOS
 
-# --- SERVIDOR WEB PARA RENDER ---
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot Manolete is running!")
+# --- APLICACIÓN FLASK Y TELEGRAM ---
+app_flask = Flask(__name__)
+telegram_app = None
 
-def run_web_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
-    server.serve_forever()
+async def setup_telegram():
+    global telegram_app
+    if not telegram_app:
+        telegram_app = Application.builder().token(TOKEN_TELEGRAM).updater(None).build()
+        
+        telegram_app.add_handler(CommandHandler("start", start))
+        telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
+        telegram_app.add_handler(CommandHandler("musica", comando_musica))
+        telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
+        
+        await telegram_app.initialize()
+
+@app_flask.route('/')
+def home():
+    return "Bot Manolete is running via Webhook!"
+
+@app_flask.route(f'/{TOKEN_TELEGRAM}', methods=['POST'])
+def webhook():
+    try:
+        json_update = request.get_json(force=True)
+        update = Update.de_json(json_update, telegram_app.bot)
+        
+        # Ejecutar el update de forma asíncrona en el bucle de eventos
+        import asyncio
+        asyncio.run(telegram_app.process_update(update))
+        
+        return "OK", 200
+    except Exception as e:
+        logger.error(f"Error procesando update: {e}")
+        return "Error", 500
 
 # --- FUNCIONES DEL BOT ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context):
     if not es_chat_permitido(update):
         return
     await update.message.reply_text(
@@ -59,7 +80,7 @@ async def buscar_en_youtube(query):
     url_busqueda = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
     return f"Resultados para: {query}", url_busqueda
 
-async def comando_musica(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def comando_musica(update: Update, context):
     if not es_chat_permitido(update):
         return
     if not context.args:
@@ -69,7 +90,7 @@ async def comando_musica(update: Update, context: ContextTypes.DEFAULT_TYPE):
     titulo, enlace = await buscar_en_youtube(query)
     await update.message.reply_text(f"🎵 **{titulo}**\n\n🔗 Enlace:\n{enlace}")
 
-async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def crear_imagen(update: Update, context):
     if not es_chat_permitido(update):
         return
     if not context.args:
@@ -98,7 +119,7 @@ async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"⚠️ Error: {str(e)}")
             return
 
-async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def responder_ia(update: Update, context):
     if not es_chat_permitido(update):
         return
 
@@ -135,26 +156,20 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
-def main():
-    # Limpiar cualquier webhook pendiente automáticamente al arrancar
-    if TOKEN_TELEGRAM:
-        try:
-            requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true", timeout=5)
-        except Exception:
-            pass
-
-    # Iniciar servidor web en segundo plano para Render
-    threading.Thread(target=run_web_server, daemon=True).start()
-
-    app = ApplicationBuilder().token(TOKEN_TELEGRAM).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("imagen", crear_imagen))
-    app.add_handler(CommandHandler("musica", comando_musica))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
-
-    logger.info("Iniciando Bot Manolete...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+# Configurar el Webhook en Telegram al arrancar la app Flask
+import asyncio
+with app_flask.app_context():
+    asyncio.run(setup_telegram())
+    # Obtener la URL pública de tu servicio en Render automáticamente o configurarla
+    # Render suele inyectar la URL o puedes usar la dirección de tu web service.
+    # Como Flask necesita saber a dónde apuntar, configuramos el webhook usando requests:
+    # (Asegúrate de cambiar 'tu-servicio.onrender.com' por tu dominio real de Render)
+    # Ejemplo: RENDER_EXTERNAL_URL es una variable que Render proporciona automáticamente.
+    url_render = os.environ.get("RENDER_EXTERNAL_URL")
+    if url_render:
+        webhook_url = f"{url_render}/{TOKEN_TELEGRAM}"
+        requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/setWebhook?url={webhook_url}")
 
 if __name__ == '__main__':
-    main()
+    port = int(os.environ.get("PORT", 10000))
+    app_flask.run(host='0.0.0.0', port=port)

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # --- CREDENCIALES ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-TOKEN_TELEGRAM = os.environ.get("TOKEN_TELEGRAM", "").strip().replace("\n", "").replace("\r", "")
+TOKEN_TELEGRAM = "2096960353:AAEwe0Hp9gE0PpX3EaHUvFDdzVRDNuTYjSw"
 API_KEY_AEMET = os.environ.get("API_KEY_AEMET", "")
 
 # --- SEGURIDAD (GRUPOS PERMITIDOS) ---
@@ -95,7 +95,7 @@ async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("⚠️ El servicio de imágenes está tardando demasiado en responder. Prueba otra vez en un minuto.")
                 return
         except Exception as e:
-            await update.message.reply_text(f"⚠️️ Error: {str(e)}")
+            await update.message.reply_text(f"⚠️ Error: {str(e)}")
             return
 
 async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +136,7 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 def main():
-    # Eliminar cualquier webhook previo automáticamente para evitar conflictos
+    # Limpiar cualquier webhook pendiente automáticamente al arrancar
     if TOKEN_TELEGRAM:
         try:
             requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true", timeout=5)

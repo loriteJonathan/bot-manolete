@@ -1,6 +1,6 @@
 import os
 import logging
-import threading
+import asyncio
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -126,11 +126,25 @@ telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
 telegram_app.add_handler(CommandHandler("musica", comando_musica))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
 
-# Usamos el sistema nativo de webhook con bot nativo de python-telegram-bot
-# Arrancamos la escucha por webhook de forma limpia con Flask
+# Inicializar la aplicación de Telegram para que procese los updates correctamente
+async def inicializar_bot():
+    await telegram_app.initialize()
+
+# Ejecutar la inicialización en el arranque de Gunicorn/Flask
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(inicializar_bot())
+
+# Registro automático del Webhook al arrancar
+url_render = os.environ.get("RENDER_EXTERNAL_URL")
+if url_render:
+    webhook_url = f"{url_render}/{TOKEN_TELEGRAM}"
+    requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/setWebhook?url={webhook_url}")
+    logger.info(f"Webhook configurado en: {webhook_url}")
+
 @app_flask.route('/')
 def home():
-    return "Bot Manolete is running perfectly!"
+    return "Bot Manolete is running perfectly with Gunicorn!"
 
 @app_flask.route(f'/{TOKEN_TELEGRAM}', methods=['POST'])
 def webhook():
@@ -138,29 +152,15 @@ def webhook():
         json_update = request.get_json(force=True)
         update = Update.de_json(json_update, telegram_app.bot)
         
-        # Encolar el update de forma nativa sin romper bucles de eventos
-        telegram_app.update_queue.put_nowait(update)
+        # Procesar el update de forma asíncrona dentro del bucle de eventos
+        async def procesar():
+            await telegram_app.process_update(update)
+
+        loop.run_until_complete(procesar())
         return "OK", 200
     except Exception as e:
-        logger.error(f"Error en webhook: {e}")
+        logger.error(f"Error procesando update: {e}")
         return "Error", 500
 
-def run_telegram_bot():
-    url_render = os.environ.get("RENDER_EXTERNAL_URL")
-    if url_render:
-        webhook_url = f"{url_render}/{TOKEN_TELEGRAM}"
-        # Forzar establecimiento del Webhook en Telegram al iniciar
-        requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/setWebhook?url={webhook_url}")
-        logger.info(f"Webhook registrado automáticamente en: {webhook_url}")
-
-    telegram_app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        webhook_url=f"{url_render}/{TOKEN_TELEGRAM}" if url_render else None,
-        drop_pending_updates=True
-    )
-
 if __name__ == '__main__':
-    # Si se ejecuta directamente
-    port = int(os.environ.get("PORT", 10000))
-    app_flask.run(host='0.0.0.0', port=port)
+    app_flask.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))

@@ -115,7 +115,7 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "system", 

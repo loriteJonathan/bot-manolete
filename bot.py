@@ -87,9 +87,8 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
-    # Modelo ultrarrápido y 100% compatible con Groq
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama3-8b-8192",
         "messages": [
             {
                 "role": "system", 
@@ -110,7 +109,8 @@ async def responder_ia(update: Update, context):
             respuesta_texto = res_json['choices'][0]['message']['content']
             await update.message.reply_text(respuesta_texto)
         else:
-            logger.error(f"Groq error details: {response.text}")
+            # Esto imprimirá el error exacto en los logs de Render para ver qué pasa
+            logger.error(f"GROQ ERROR RESPUESTA: Status {response.status_code} - Body: {response.text}")
             await update.message.reply_text(f"⚠️ Error de API Groq ({response.status_code})")
     except Exception as e:
         logger.error(f"Excepción Groq: {e}")

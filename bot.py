@@ -1,13 +1,10 @@
 import os
 import logging
-import asyncio
-from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 import requests
 import urllib.parse
 import io
-from datetime import datetime
 
 # --- CONFIGURACIÓN DE LOGS ---
 logging.basicConfig(
@@ -30,13 +27,6 @@ def es_chat_permitido(update: Update) -> bool:
         return True
     return update.effective_chat.id in GRUPOS_PERMITIDOS
 
-# --- APLICACIÓN FLASK Y TELEGRAM ---
-app_flask = Flask(__name__)
-
-# Construir la aplicación de Telegram
-telegram_app = Application.builder().token(TOKEN_TELEGRAM).build()
-
-# Registrar manejadores
 async def start(update: Update, context):
     if not es_chat_permitido(update):
         return
@@ -97,7 +87,6 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
-    # Usamos el modelo actual y estable de Groq
     payload = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
@@ -126,44 +115,22 @@ async def responder_ia(update: Update, context):
         logger.error(f"Excepción Groq: {e}")
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(CommandHandler("imagen", crear_imagen))
-telegram_app.add_handler(CommandHandler("musica", comando_musica))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
+def main():
+    # Asegurarnos de borrar cualquier webhook previo para que el Polling funcione libremente
+    requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true")
+    
+    # Construir la aplicación de Telegram
+    application = Application.builder().token(TOKEN_TELEGRAM).build()
 
-# Inicializar la aplicación de Telegram
-async def inicializar_bot():
-    await telegram_app.initialize()
+    # Registrar manejadores
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("imagen", crear_imagen))
+    application.add_handler(CommandHandler("musica", comando_musica))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-loop.run_until_complete(inicializar_bot())
-
-# Registro automático del Webhook al arrancar
-url_render = os.environ.get("RENDER_EXTERNAL_URL")
-if url_render:
-    webhook_url = f"{url_render}/{TOKEN_TELEGRAM}"
-    requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/setWebhook?url={webhook_url}")
-    logger.info(f"Webhook configurado en: {webhook_url}")
-
-@app_flask.route('/')
-def home():
-    return "Bot Manolete is running perfectly with Gunicorn!"
-
-@app_flask.route(f'/{TOKEN_TELEGRAM}', methods=['POST'])
-def webhook():
-    try:
-        json_update = request.get_json(force=True)
-        update = Update.de_json(json_update, telegram_app.bot)
-        
-        async def procesar():
-            await telegram_app.process_update(update)
-
-        loop.run_until_complete(procesar())
-        return "OK", 200
-    except Exception as e:
-        logger.error(f"Error procesando update: {e}")
-        return "Error", 500
+    logger.info("Iniciando Manolete en modo Long Polling...")
+    # Arrancar el bot con polling continuo
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    app_flask.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+    main()

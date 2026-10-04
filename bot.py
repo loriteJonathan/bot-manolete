@@ -87,9 +87,9 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
-    # Modelo actualizado y 100% compatible
+    # Modelo ultrarrápido y 100% compatible con Groq
     payload = {
-        "model": "llama3-70b-8192",
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {
                 "role": "system", 
@@ -117,13 +117,10 @@ async def responder_ia(update: Update, context):
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 def main():
-    # Borrar webhook previo para que el Polling funcione libremente sin conflictos
     requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true")
     
-    # Construir la aplicación de Telegram
     application = Application.builder().token(TOKEN_TELEGRAM).build()
 
-    # Registrar manejadores
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("imagen", crear_imagen))
     application.add_handler(CommandHandler("musica", comando_musica))

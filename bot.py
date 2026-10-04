@@ -95,7 +95,7 @@ async def crear_imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("⚠️ El servicio de imágenes está tardando demasiado en responder. Prueba otra vez en un minuto.")
                 return
         except Exception as e:
-            await update.message.reply_text(f"⚠️ Error: {str(e)}")
+            await update.message.reply_text(f"⚠️️ Error: {str(e)}")
             return
 
 async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -113,7 +113,6 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Content-Type": "application/json"
     }
     
-    # Payload simplificado para evitar errores 400
     payload = {
         "model": "llama3-70b-8192",
         "messages": [
@@ -137,6 +136,14 @@ async def responder_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 def main():
+    # Eliminar cualquier webhook previo automáticamente para evitar conflictos
+    if TOKEN_TELEGRAM:
+        try:
+            requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true", timeout=5)
+        except Exception:
+            pass
+
+    # Iniciar servidor web en segundo plano para Render
     threading.Thread(target=run_web_server, daemon=True).start()
 
     app = ApplicationBuilder().token(TOKEN_TELEGRAM).build()

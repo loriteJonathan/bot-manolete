@@ -87,8 +87,9 @@ async def responder_ia(update: Update, context):
         "Content-Type": "application/json"
     }
     
+    # Modelo actualizado y 100% compatible
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "system", 
@@ -116,7 +117,7 @@ async def responder_ia(update: Update, context):
         await update.message.reply_text(f"⚠️ Excepción conectando con IA: {str(e)}")
 
 def main():
-    # Asegurarnos de borrar cualquier webhook previo para que el Polling funcione libremente
+    # Borrar webhook previo para que el Polling funcione libremente sin conflictos
     requests.get(f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/deleteWebhook?drop_pending_updates=true")
     
     # Construir la aplicación de Telegram
@@ -129,7 +130,6 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_ia))
 
     logger.info("Iniciando Manolete en modo Long Polling...")
-    # Arrancar el bot con polling continuo
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':

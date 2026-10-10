@@ -2,17 +2,17 @@ import os
 import telebot
 from groq import Groq
 
-# 1. Cargar y limpiar automáticamente las credenciales para evitar espacios o saltos de línea (\n)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+# 1. Cargar y limpiar estrictamente las credenciales para evitar saltos de línea (\n, \r) o espacios
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip().replace("\n", "").replace("\r", "")
+clean_groq_key = os.environ.get("GROQ_API_KEY", "").strip().replace("\n", "").replace("\r", "")
 
 # Validar que las variables estén configuradas
-if not TELEGRAM_TOKEN or not GROQ_API_KEY:
+if not TELEGRAM_TOKEN or not clean_groq_key:
     raise ValueError("Faltan TELEGRAM_TOKEN o GROQ_API_KEY en las variables de entorno de Railway.")
 
-# 2. Inicializar los clientes de Telegram y Groq
+# 2. Inicializar los clientes de Telegram y Groq con la clave ya saneada
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-groq_client = Groq(api_key=GROQ_API_KEY)
+groq_client = Groq(api_key=clean_groq_key)
 
 # 3. Comando /start
 @bot.message_handler(commands=['start'])
@@ -38,7 +38,7 @@ def handle_message(message):
             ],
             temperature=0.7,
             max_tokens=1024
-        ]
+        )
         
         response_text = completion.choices[0].message.content
         bot.reply_to(message, response_text)

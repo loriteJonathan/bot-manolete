@@ -2,10 +2,8 @@ import os
 import requests
 import telebot
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip().replace("\n", "").replace("\r", "")
-# Si el token no lo lee bien el entorno, ponlo aquí directo entre comillas:
-if not TELEGRAM_TOKEN:
-    TELEGRAM_TOKEN = "7756860361:AAHd1b5qK6-w_z1b..." # (Pon tu token real si hace falta)
+# Token real de Telegram integrado directamente
+TELEGRAM_TOKEN = "7756860361:AAHd1b5qK6-w_z1b..."
 
 GROQ_API_KEY = "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"
 
@@ -13,7 +11,7 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    print(">>> Comando /start recibido en consola")
+    print(">>> ¡Comando /start recibido en consola!")
     bot.reply_to(message, "🤖 ¡Hola! Soy MANOLETE, funcionando a la perfección.")
 
 @bot.message_handler(func=lambda message: True)
@@ -53,5 +51,5 @@ def handle_message(message):
         print(f">>> Excepción: {str(e)}")
 
 if __name__ == "__main__":
-    print("🤖 Bot MANOLETE iniciado y esperando mensajes...")
-    bot.infinity_polling(skip_pending=True) # skip_pending borra mensajes viejos atascados
+    print("🤖 Bot MANOLETE iniciado y escuchando mensajes...")
+    bot.infinity_polling(skip_pending=True)

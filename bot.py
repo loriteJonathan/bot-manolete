@@ -52,4 +52,5 @@ def handle_message(message):
 
 if __name__ == "__main__":
     print("🤖 Bot MANOLETE iniciado y escuchando mensajes...")
-    bot.infinity_polling(skip_pending=True)
+    # Usamos infinity_polling limpio sin skip_pending para evitar el fallo de red
+    bot.infinity_polling()

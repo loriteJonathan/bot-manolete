@@ -24,7 +24,7 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
-# 4. Manejador de mensajes con modelo actualizado de Groq
+# 4. Manejador de mensajes con el modelo correcto de Groq
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
@@ -34,7 +34,7 @@ def handle_message(message):
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama-3.1-8b-instant",
+            "model": "llama3-70b-8192",
             "messages": [
                 {"role": "system", "content": "Eres MANOLETE, un asistente de IA avanzado, directo y muy útil."},
                 {"role": "user", "content": message.text}

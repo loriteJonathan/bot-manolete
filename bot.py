@@ -2,31 +2,24 @@ import os
 import requests
 import telebot
 
-# 1. Cargar el token de Telegram
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip().replace("\n", "").replace("\r", "")
-
-# 2. Clave de Groq directa y oficial
-GROQ_API_KEY = "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"
-
+# Si el token no lo lee bien el entorno, ponlo aquí directo entre comillas:
 if not TELEGRAM_TOKEN:
-    raise ValueError("Falta TELEGRAM_TOKEN en las variables de entorno.")
+    TELEGRAM_TOKEN = "7756860361:AAHd1b5qK6-w_z1b..." # (Pon tu token real si hace falta)
+
+GROQ_API_KEY = "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"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# 3. Comando /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    welcome_text = (
-        "🤖 ¡Hola! Soy **MANOLETE**, tu asistente de IA avanzado y programador.\n\n"
-        "Pregúntame lo que necesites o usa:\n"
-        "🎵 `/musica [tema]`\n"
-        "🎨 `/imagen [descripcion]`"
-    )
-    bot.reply_to(message, welcome_text, parse_mode="Markdown")
+    print(">>> Comando /start recibido en consola")
+    bot.reply_to(message, "🤖 ¡Hola! Soy MANOLETE, funcionando a la perfección.")
 
-# 4. Manejador de mensajes general
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
+    print(f">>> Mensaje recibido de {message.from_user.first_name}: {message.text}")
+    
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -34,7 +27,7 @@ def handle_message(message):
     }
     
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {"role": "system", "content": "Eres MANOLETE, un asistente de IA avanzado, directo y muy útil."},
             {"role": "user", "content": message.text}
@@ -50,12 +43,15 @@ def handle_message(message):
         if response.status_code == 200:
             response_text = data["choices"][0]["message"]["content"]
             bot.reply_to(message, response_text)
+            print(">>> Respuesta enviada con éxito a Telegram")
         else:
             error_desc = data.get('error', {}).get('message', str(data))
             bot.reply_to(message, f"⚠️ Error Groq ({response.status_code}): {error_desc}")
+            print(f">>> Error de Groq: {error_desc}")
     except Exception as e:
         bot.reply_to(message, f"⚠️ Excepción interna: {str(e)}")
+        print(f">>> Excepción: {str(e)}")
 
 if __name__ == "__main__":
-    print("🤖 Bot MANOLETE iniciado correctamente y escuchando...")
-    bot.infinity_polling()
+    print("🤖 Bot MANOLETE iniciado y esperando mensajes...")
+    bot.infinity_polling(skip_pending=True) # skip_pending borra mensajes viejos atascados

@@ -6,7 +6,7 @@ import telebot
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip().replace("\n", "").replace("\r", "")
 
 # 2. Clave de Groq fija y directa
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 if not TELEGRAM_TOKEN:
     raise ValueError("Falta TELEGRAM_TOKEN en las variables de entorno.")

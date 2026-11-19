@@ -2,8 +2,12 @@ import os
 import time
 import requests
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "PON_AQUI_TU_TOKEN_COMPLETO_DE_BOTFATHER").strip()
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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").strip()
+TELEGRAM_TOKEN = os.environ.get(
+    "TELEGRAM_TOKEN", "2096960353:AAEwe0Hp9gE0PpX3EaHUvFDdzVRDNuTYjSw"
+).strip()
+GROQ_API_KEY = os.environ.get(
+    "GROQ_API_KEY", "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"
+).strip()
 
 MODELS = [
     "llama-3.3-70b-versatile",
@@ -62,11 +66,6 @@ def ask_groq(prompt):
 
 
 def main():
-    if not TELEGRAM_TOKEN or "PON_AQUI_TU_TOKEN_COMPLETO" in TELEGRAM_TOKEN:
-        print("⚠️ Falta poner el token real de Telegram en TELEGRAM_TOKEN.")
-        while True:
-            time.sleep(60)
-
     print("🤖 Bot MANOLETE iniciado y escuchando...")
     offset = 0
 

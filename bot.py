@@ -1,56 +1,103 @@
-import os
+import time
 import requests
-import telebot
 
-# Token real de Telegram integrado directamente
 TELEGRAM_TOKEN = "7756860361:AAHd1b5qK6-w_z1b..."
+GROQ_API_KEY = "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"
 
-GROQ_API_KEY = "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"
+MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "llama3-70b-8192",
+]
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    print(">>> ¡Comando /start recibido en consola!")
-    bot.reply_to(message, "🤖 ¡Hola! Soy MANOLETE, funcionando a la perfección.")
+def send_telegram_message(chat_id, text, use_markdown=False):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text[:4000]}
+    if use_markdown:
+        payload["parse_mode"] = "Markdown"
+    try:
+        r = requests.post(url, json=payload, timeout=15)
+        if r.status_code != 200 and use_markdown:
+            payload.pop("parse_mode", None)
+            requests.post(url, json=payload, timeout=15)
+    except Exception as e:
+        print(f"Error enviando a Telegram: {e}")
 
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    print(f">>> Mensaje recibido de {message.from_user.first_name}: {message.text}")
-    
+
+def ask_groq(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
-    payload = {
-        "model": "llama3-70b-8192",
-        "messages": [
-            {"role": "system", "content": "Eres MANOLETE, un asistente de IA avanzado, directo y muy útil."},
-            {"role": "user", "content": message.text}
-        ],
-        "temperature": 0.7,
-        "max_tokens": 1024
-    }
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
-        data = response.json()
-        
-        if response.status_code == 200:
-            response_text = data["choices"][0]["message"]["content"]
-            bot.reply_to(message, response_text)
-            print(">>> Respuesta enviada con éxito a Telegram")
-        else:
-            error_desc = data.get('error', {}).get('message', str(data))
-            bot.reply_to(message, f"⚠️ Error Groq ({response.status_code}): {error_desc}")
-            print(f">>> Error de Groq: {error_desc}")
-    except Exception as e:
-        bot.reply_to(message, f"⚠️ Excepción interna: {str(e)}")
-        print(f">>> Excepción: {str(e)}")
+
+    last_error = "Sin respuesta de Groq"
+    for model_name in MODELS:
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Eres MANOLETE, un asistente de IA avanzado, directo y muy útil.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1024,
+        }
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=20)
+            data = response.json()
+            if response.status_code == 200:
+                return data["choices"][0]["message"]["content"]
+            last_error = data.get("error", {}).get("message", f"HTTP {response.status_code}")
+            print(f">>> Modelo {model_name} falló: {last_error}")
+        except Exception as e:
+            last_error = str(e)
+            print(f">>> Excepción con {model_name}: {last_error}")
+
+    return f"⚠️ Error conectando con Groq: {last_error}"
+
+
+def main():
+    print("🤖 Bot MANOLETE iniciado y escuchando...")
+    offset = 0
+
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
+            params = {"offset": offset, "timeout": 25}
+            response = requests.get(url, params=params, timeout=35)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("ok"):
+                    for result in data.get("result", []):
+                        offset = result["update_id"] + 1
+                        msg = result.get("message") or result.get("edited_message")
+                        if msg and "text" in msg:
+                            chat_id = msg["chat"]["id"]
+                            user_text = msg["text"].strip()
+                            user_name = msg.get("from", {}).get("first_name", "Usuario")
+                            print(f">>> {user_name}: {user_text}")
+
+                            if user_text.startswith("/start"):
+                                reply = (
+                                    "🤖 ¡Hola! Soy *MANOLETE*, tu asistente de IA avanzado y programador.\n\n"
+                                    "Escríbeme lo que necesites."
+                                )
+                                send_telegram_message(chat_id, reply, use_markdown=True)
+                            else:
+                                reply = ask_groq(user_text)
+                                send_telegram_message(chat_id, reply, use_markdown=False)
+            else:
+                print(f">>> Telegram respondió HTTP {response.status_code}")
+                time.sleep(3)
+        except Exception as e:
+            print(f">>> Error en el bucle: {e}")
+            time.sleep(5)
+
 
 if __name__ == "__main__":
-    print("🤖 Bot MANOLETE iniciado y escuchando mensajes...")
-    # Usamos infinity_polling limpio sin skip_pending para evitar el fallo de red
-    bot.infinity_polling()
+    main()

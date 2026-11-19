@@ -5,10 +5,9 @@ TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 
 PREFERRED_MODELS = [
+    "qwen/qwen3.8-27b",
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768",
 ]
 
 
@@ -34,14 +33,14 @@ def get_available_groq_models():
             data = r.json()
             ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
             for pref in PREFERRED_MODELS:
-                if pref in ids:
+                if pref in ids and pref not in available:
                     available.append(pref)
             for mid in ids:
-                if mid not in available and ("llama" in mid or "qwen" in mid or "deepseek" in mid or "gemma" in mid):
+                if mid not in available and "prompt-guard" not in mid and "whisper" not in mid and "guard" not in mid:
                     available.append(mid)
             if not available:
-                available = ids[:5]
-            print(f">>> Modelos activos detectados en Groq: {available}")
+                available = ids[:3]
+            print(f">>> Modelos listos en Groq: {available}")
         else:
             print(f">>> No se pudo listar modelos de Groq (HTTP {r.status_code})")
     except Exception as e:
@@ -100,8 +99,8 @@ def ask_groq(prompt, models_list):
 
 
 def main():
-    print("🤖 Bot v4 iniciado | Esperando 8s para liberar sesiones previas...")
-    time.sleep(8)
+    print("🤖 Bot v5 iniciado | Esperando 10s para liberar sesiones previas...")
+    time.sleep(10)
     clear_webhook()
     models_list = get_available_groq_models()
     offset = 0
@@ -109,8 +108,8 @@ def main():
     while True:
         try:
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
-            params = {"offset": offset, "timeout": 25}
-            response = requests.get(url, params=params, timeout=35)
+            params = {"offset": offset, "timeout": 10}
+            response = requests.get(url, params=params, timeout=20)
 
             if response.status_code == 200:
                 data = response.json()

@@ -4,9 +4,11 @@ import requests
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 
-MODELS = [
+PREFERRED_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+    "mixtral-8x7b-32768",
 ]
 
 
@@ -17,6 +19,35 @@ def clear_webhook():
         print(f">>> Webhook check: {r.status_code}")
     except Exception as e:
         print(f">>> No se pudo comprobar webhook: {e}")
+
+
+def get_available_groq_models():
+    url = "https://api.groq.com/openai/v1/models"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    available = []
+    try:
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
+            for pref in PREFERRED_MODELS:
+                if pref in ids:
+                    available.append(pref)
+            for mid in ids:
+                if mid not in available and ("llama" in mid or "qwen" in mid or "deepseek" in mid or "gemma" in mid):
+                    available.append(mid)
+            if not available:
+                available = ids[:5]
+            print(f">>> Modelos activos detectados en Groq: {available}")
+        else:
+            print(f">>> No se pudo listar modelos de Groq (HTTP {r.status_code})")
+    except Exception as e:
+        print(f">>> Error listando modelos de Groq: {e}")
+
+    return available if available else PREFERRED_MODELS
 
 
 def send_telegram_message(chat_id, text, use_markdown=False):
@@ -33,7 +64,7 @@ def send_telegram_message(chat_id, text, use_markdown=False):
         print(f"Error enviando a Telegram: {e}")
 
 
-def ask_groq(prompt):
+def ask_groq(prompt, models_list):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -41,7 +72,7 @@ def ask_groq(prompt):
     }
 
     last_error = "Sin respuesta de Groq"
-    for model_name in MODELS:
+    for model_name in models_list:
         payload = {
             "model": model_name,
             "messages": [
@@ -69,8 +100,9 @@ def ask_groq(prompt):
 
 
 def main():
-    print(f"🤖 Bot v2 iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
+    print(f"🤖 Bot v3 iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
     clear_webhook()
+    models_list = get_available_groq_models()
     offset = 0
 
     while True:
@@ -98,7 +130,7 @@ def main():
                                 )
                                 send_telegram_message(chat_id, reply, use_markdown=True)
                             else:
-                                reply = ask_groq(user_text)
+                                reply = ask_groq(user_text, models_list)
                                 send_telegram_message(chat_id, reply, use_markdown=False)
             elif response.status_code == 409:
                 print(">>> Conflicto HTTP 409 (otra sesión activa con este token). Reintentando en 12s...")

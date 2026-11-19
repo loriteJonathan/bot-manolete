@@ -100,7 +100,8 @@ def ask_groq(prompt, models_list):
 
 
 def main():
-    print(f"🤖 Bot v3 iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
+    print("🤖 Bot v4 iniciado | Esperando 8s para liberar sesiones previas...")
+    time.sleep(8)
     clear_webhook()
     models_list = get_available_groq_models()
     offset = 0
@@ -133,8 +134,8 @@ def main():
                                 reply = ask_groq(user_text, models_list)
                                 send_telegram_message(chat_id, reply, use_markdown=False)
             elif response.status_code == 409:
-                print(">>> Conflicto HTTP 409 (otra sesión activa con este token). Reintentando en 12s...")
-                time.sleep(12)
+                print(">>> Conflicto HTTP 409 en Telegram. Reintentando en 15s...")
+                time.sleep(15)
             else:
                 print(f">>> Telegram respondió HTTP {response.status_code}")
                 time.sleep(4)

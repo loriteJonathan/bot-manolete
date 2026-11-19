@@ -1,13 +1,8 @@
-import os
 import time
 import requests
 
-TELEGRAM_TOKEN = os.environ.get(
-    "TELEGRAM_TOKEN", "2096960353:AAEwe0Hp9gE0PpX3EaHUvFDdzVRDNuTYjSw"
-).strip()
-GROQ_API_KEY = os.environ.get(
-    "GROQ_API_KEY", "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"
-).strip()
+TELEGRAM_TOKEN = "2096960353:AAH3ewc_MMQYVOrGdA9JnAyMzBzrUmefVt4".strip()
+GROQ_API_KEY = "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".strip()
 
 MODELS = [
     "llama-3.3-70b-versatile",
@@ -66,7 +61,7 @@ def ask_groq(prompt):
 
 
 def main():
-    print("🤖 Bot MANOLETE iniciado y escuchando...")
+    print(f"🤖 Bot MANOLETE iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
     offset = 0
 
     while True:

@@ -69,7 +69,7 @@ def ask_groq(prompt):
 
 
 def main():
-    print(f"🤖 Bot iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
+    print(f"🤖 Bot v2 iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
     clear_webhook()
     offset = 0
 

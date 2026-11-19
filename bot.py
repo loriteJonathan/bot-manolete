@@ -11,6 +11,15 @@ MODELS = [
 ]
 
 
+def clear_webhook():
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook"
+        r = requests.get(url, params={"drop_pending_updates": "false"}, timeout=15)
+        print(f">>> Webhook check: {r.status_code}")
+    except Exception as e:
+        print(f">>> No se pudo comprobar webhook: {e}")
+
+
 def send_telegram_message(chat_id, text, use_markdown=False):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text[:4000]}
@@ -39,7 +48,7 @@ def ask_groq(prompt):
             "messages": [
                 {
                     "role": "system",
-                    "content": "Eres MANOLETE, un asistente de IA avanzado, directo y muy útil.",
+                    "content": "Eres un asistente de IA avanzado, directo y muy útil.",
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -61,7 +70,8 @@ def ask_groq(prompt):
 
 
 def main():
-    print(f"🤖 Bot MANOLETE iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
+    print(f"🤖 Bot iniciado | Token empieza por: {TELEGRAM_TOKEN[:10]}...")
+    clear_webhook()
     offset = 0
 
     while True:
@@ -84,16 +94,19 @@ def main():
 
                             if user_text.startswith("/start"):
                                 reply = (
-                                    "🤖 ¡Hola! Soy *MANOLETE*, tu asistente de IA avanzado y programador.\n\n"
+                                    "🤖 ¡Hola! Ya estoy conectado y listo.\n\n"
                                     "Escríbeme lo que necesites."
                                 )
                                 send_telegram_message(chat_id, reply, use_markdown=True)
                             else:
                                 reply = ask_groq(user_text)
                                 send_telegram_message(chat_id, reply, use_markdown=False)
+            elif response.status_code == 409:
+                print(">>> Conflicto HTTP 409 (otra sesión activa con este token). Reintentando en 12s...")
+                time.sleep(12)
             else:
                 print(f">>> Telegram respondió HTTP {response.status_code}")
-                time.sleep(3)
+                time.sleep(4)
         except Exception as e:
             print(f">>> Error en el bucle: {e}")
             time.sleep(5)

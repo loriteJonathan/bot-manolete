@@ -2,6 +2,11 @@ from datetime import datetime
 import time
 import requests
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
+
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 
@@ -10,6 +15,17 @@ PREFERRED_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
 ]
+
+
+def obtener_fecha_hora_actual() -> str:
+    try:
+        if ZoneInfo is not None:
+            ahora = datetime.now(ZoneInfo("Europe/Madrid"))
+        else:
+            ahora = datetime.now()
+    except Exception:
+        ahora = datetime.now()
+    return ahora.strftime("%d/%m/%Y %H:%M")
 
 
 def clear_webhook():
@@ -71,7 +87,7 @@ def ask_groq(prompt, models_list):
         "Content-Type": "application/json",
     }
 
-    ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    ahora = obtener_fecha_hora_actual()
     last_error = "Sin respuesta de Groq"
 
     for model_name in models_list:
@@ -82,7 +98,7 @@ def ask_groq(prompt, models_list):
                     "role": "system",
                     "content": (
                         "Eres un asistente de IA avanzado, directo y muy útil. "
-                        f"La fecha y hora actual del sistema son: {ahora}."
+                        f"La fecha y hora actual son: {ahora} (hora de España)."
                     ),
                 },
                 {"role": "user", "content": prompt},

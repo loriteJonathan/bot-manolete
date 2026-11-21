@@ -82,7 +82,7 @@ def ask_groq(prompt, models_list):
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": 1024,
+            "max_tokens": 512,
         }
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=20)

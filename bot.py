@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import requests
 
@@ -70,14 +71,19 @@ def ask_groq(prompt, models_list):
         "Content-Type": "application/json",
     }
 
+    ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
     last_error = "Sin respuesta de Groq"
+
     for model_name in models_list:
         payload = {
             "model": model_name,
             "messages": [
                 {
                     "role": "system",
-                    "content": "Eres un asistente de IA avanzado, directo y muy útil.",
+                    "content": (
+                        "Eres un asistente de IA avanzado, directo y muy útil. "
+                        f"La fecha y hora actual del sistema son: {ahora}."
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],

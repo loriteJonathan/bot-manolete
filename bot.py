@@ -16,6 +16,31 @@ PREFERRED_MODELS = [
     "llama-3.1-8b-instant",
 ]
 
+DIAS_SEMANA = [
+    "lunes",
+    "martes",
+    "miércoles",
+    "jueves",
+    "viernes",
+    "sábado",
+    "domingo",
+]
+
+MESES = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+]
+
 
 def obtener_fecha_hora_actual() -> str:
     try:
@@ -25,7 +50,13 @@ def obtener_fecha_hora_actual() -> str:
             ahora = datetime.now()
     except Exception:
         ahora = datetime.now()
-    return ahora.strftime("%d/%m/%Y %H:%M")
+
+    dia_semana = DIAS_SEMANA[ahora.weekday()]
+    nombre_mes = MESES[ahora.month - 1]
+    return (
+        f"{dia_semana}, {ahora.day} de {nombre_mes} de {ahora.year} "
+        f"a las {ahora.strftime('%H:%M')}"
+    )
 
 
 def clear_webhook():
@@ -97,8 +128,10 @@ def ask_groq(prompt, models_list):
                 {
                     "role": "system",
                     "content": (
-                        "Eres un asistente de IA avanzado, directo y muy útil. "
-                        f"La fecha y hora actual son: {ahora} (hora de España)."
+                        "Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
+                        f"La fecha y hora exacta actuales en España son: {ahora}. "
+                        "Usa SIEMPRE esta fecha y hora como única verdad actual. "
+                        "Nunca menciones fechas pasadas de entrenamiento ni des dos fechas distintas."
                     ),
                 },
                 {"role": "user", "content": prompt},

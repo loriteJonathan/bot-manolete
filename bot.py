@@ -1,9 +1,32 @@
+import re
 import time
+from urllib.parse import quote
 import requests
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+
+def extract_youtube_query(user_text: str):
+    text = user_text.strip()
+    lower = text.lower()
+    if lower.startswith("/yt") or lower.startswith("/youtube"):
+        partes = text.split(maxsplit=1)
+        return partes[1].strip() if len(partes) > 1 else ""
+
+    patrones = [
+        r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar|quiero ver)\s+(?:en\s+youtube\s+)?(?:el\s+v[ií]deo|la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de|un\s+v[ií]deo\s+de)?\s*(.+)$",
+        r"^(?:manolete[\s,:-]*)?(?:en\s+)?(?:youtube|yt)[\s,:-]+(.+)$",
+        r"^(.+?)\s+en\s+(?:youtube|yt)[\?\!\.]*$",
+    ]
+    for patron in patrones:
+        match = re.match(patron, text, flags=re.IGNORECASE)
+        if match:
+            consulta = re.sub(r"\s+en\s+(?:youtube|yt)$", "", match.group(1), flags=re.IGNORECASE).strip(" ?!.,\"'")
+            if consulta:
+                return consulta
+    return None
 
 
 def send_telegram_message(chat_id, text, message_thread_id=None):
@@ -70,9 +93,17 @@ def main():
                             thread_id = msg.get("message_thread_id")
                             text = msg["text"].strip()
                             if text.startswith("/start"):
-                                reply = "🤖 ¡Hola! Soy MANOLETE, ¿en qué te ayudo?"
+                                reply = "🤖 ¡Hola! Usa /yt <canción> o dime: búscame en YouTube Entre dos aguas"
                             else:
-                                reply = ask_groq(text)
+                                yt_q = extract_youtube_query(text)
+                                if yt_q is not None:
+                                    if not yt_q:
+                                        reply = "▶️ Ejemplo: /yt Entre dos aguas"
+                                    else:
+                                        enlace = f"https://www.youtube.com/results?search_query={quote(yt_q, safe='')}"
+                                        reply = f"▶️ Buscar \"{yt_q}\" en YouTube:\n{enlace}"
+                                else:
+                                    reply = ask_groq(text)
                             send_telegram_message(chat_id, reply, message_thread_id=thread_id)
             elif r.status_code == 409:
                 time.sleep(15)

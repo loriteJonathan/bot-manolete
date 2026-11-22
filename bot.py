@@ -168,4 +168,26 @@ def main():
                             if text.startswith("/start"):
                                 reply = "🤖 ¡Hola! Usa /yt <canción> o dime: búscame en YouTube Entre dos aguas"
                             elif text.startswith("/id_tema"):
-                                reply = f
+                                reply = f"🧵 ID de este tema: {thread_id}"
+                            else:
+                                yt_q = extract_youtube_query(text)
+                                if yt_q is not None:
+                                    if not yt_q:
+                                        reply = "▶️ Ejemplo: /yt Entre dos aguas"
+                                    else:
+                                        enlace = f"https://www.youtube.com/results?search_query={quote(yt_q, safe='')}"
+                                        reply = f"▶️ Buscar \"{yt_q}\" en YouTube:\n{enlace}"
+                                else:
+                                    reply = generate_ai_reply(text, models_list)
+                            send_telegram_message(chat_id, reply, message_thread_id=thread_id)
+            elif r.status_code == 409:
+                time.sleep(15)
+            else:
+                time.sleep(4)
+        except Exception as e:
+            print(f">>> Error: {e}")
+            time.sleep(5)
+
+
+if __name__ == "__main__":
+    main()

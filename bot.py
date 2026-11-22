@@ -8,7 +8,7 @@ except ImportError:
     ZoneInfo = None
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
-GROQ_API_KEY = "Gsk_TtpfEo4tnh3i8tHDUkgZWGdyb3FYE1my0MfqX6VWeYgZ4nLLpZSS".strip()
+GROQ_API_KEY = "Gsk_HBMHLL8u45buOrMqKQsvWGdyb3FYV2yKg9AAL2hhWunWvbZYYneJ".strip()
 
 PREFERRED_MODELS = [
     "qwen/qwen3.8-27b",

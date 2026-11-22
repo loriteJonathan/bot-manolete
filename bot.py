@@ -9,11 +9,17 @@ except ImportError:
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
+GEMINI_API_KEY = "AQ.Ab8RN6KGJRXUr2EXlDgsdwB_AXmGl_hEVpP4QSe6NvJZ-R8dPg".strip()
 
-PREFERRED_MODELS = [
+PREFERRED_GROQ_MODELS = [
     "qwen/qwen3.8-27b",
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
+]
+
+GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
 ]
 
 DIAS_SEMANA = [
@@ -59,6 +65,16 @@ def obtener_fecha_hora_actual() -> str:
     )
 
 
+def get_system_prompt() -> str:
+    ahora = obtener_fecha_hora_actual()
+    return (
+        "Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
+        f"La fecha y hora exacta actuales en España son: {ahora}. "
+        "Usa SIEMPRE esta fecha y hora como única verdad actual. "
+        "Nunca menciones fechas pasadas de entrenamiento ni des dos fechas distintas."
+    )
+
+
 def clear_webhook():
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook"
@@ -80,11 +96,16 @@ def get_available_groq_models():
         if r.status_code == 200:
             data = r.json()
             ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
-            for pref in PREFERRED_MODELS:
+            for pref in PREFERRED_GROQ_MODELS:
                 if pref in ids and pref not in available:
                     available.append(pref)
             for mid in ids:
-                if mid not in available and "prompt-guard" not in mid and "whisper" not in mid and "guard" not in mid:
+                if (
+                    mid not in available
+                    and "prompt-guard" not in mid
+                    and "whisper" not in mid
+                    and "guard" not in mid
+                ):
                     available.append(mid)
             if not available:
                 available = ids[:3]
@@ -94,12 +115,14 @@ def get_available_groq_models():
     except Exception as e:
         print(f">>> Error listando modelos de Groq: {e}")
 
-    return available if available else PREFERRED_MODELS
+    return available if available else PREFERRED_GROQ_MODELS
 
 
-def send_telegram_message(chat_id, text, use_markdown=False):
+def send_telegram_message(chat_id, text, message_thread_id=None, use_markdown=False):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text[:4000]}
+    if message_thread_id is not None:
+        payload["message_thread_id"] = message_thread_id
     if use_markdown:
         payload["parse_mode"] = "Markdown"
     try:
@@ -117,23 +140,14 @@ def ask_groq(prompt, models_list):
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-
-    ahora = obtener_fecha_hora_actual()
+    system_prompt = get_system_prompt()
     last_error = "Sin respuesta de Groq"
 
     for model_name in models_list:
         payload = {
             "model": model_name,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
-                        f"La fecha y hora exacta actuales en España son: {ahora}. "
-                        "Usa SIEMPRE esta fecha y hora como única verdad actual. "
-                        "Nunca menciones fechas pasadas de entrenamiento ni des dos fechas distintas."
-                    ),
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
@@ -143,18 +157,70 @@ def ask_groq(prompt, models_list):
             response = requests.post(url, json=payload, headers=headers, timeout=20)
             data = response.json()
             if response.status_code == 200:
-                return data["choices"][0]["message"]["content"]
+                return True, data["choices"][0]["message"]["content"]
             last_error = data.get("error", {}).get("message", f"HTTP {response.status_code}")
-            print(f">>> Modelo {model_name} falló: {last_error}")
+            print(f">>> Groq ({model_name}) falló: {last_error}")
         except Exception as e:
             last_error = str(e)
-            print(f">>> Excepción con {model_name}: {last_error}")
+            print(f">>> Excepción en Groq ({model_name}): {last_error}")
 
-    return f"⚠️ Error conectando con Groq: {last_error}"
+    return False, last_error
+
+
+def ask_gemini(prompt):
+    if not GEMINI_API_KEY:
+        return False, "Sin clave de Gemini"
+
+    system_prompt = get_system_prompt()
+    last_error = "Sin respuesta de Gemini"
+
+    for model_name in GEMINI_MODELS:
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model_name}:generateContent?key={GEMINI_API_KEY}"
+        )
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 512,
+            },
+        }
+        try:
+            response = requests.post(url, json=payload, timeout=20)
+            data = response.json()
+            if response.status_code == 200:
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    text = "".join(p.get("text", "") for p in parts if "text" in p).strip()
+                    if text:
+                        return True, text
+            last_error = data.get("error", {}).get("message", f"HTTP {response.status_code}")
+            print(f">>> Gemini ({model_name}) falló: {last_error}")
+        except Exception as e:
+            last_error = str(e)
+            print(f">>> Excepción en Gemini ({model_name}): {last_error}")
+
+    return False, last_error
+
+
+def generate_ai_reply(prompt, models_list):
+    ok_groq, groq_res = ask_groq(prompt, models_list)
+    if ok_groq and groq_res:
+        return groq_res
+
+    print(">>> Pasando a respaldo con Gemini...")
+    ok_gemini, gemini_res = ask_gemini(prompt)
+    if ok_gemini and gemini_res:
+        return gemini_res
+
+    return f"⚠️ Error conectando con Groq ({groq_res}) y Gemini ({gemini_res})"
 
 
 def main():
-    print("🤖 Bot v5 iniciado | Esperando 10s para liberar sesiones previas...")
+    print("🤖 Bot MANOLETE iniciado | Esperando 10s para liberar sesiones previas...")
     time.sleep(10)
     clear_webhook()
     models_list = get_available_groq_models()
@@ -174,19 +240,38 @@ def main():
                         msg = result.get("message") or result.get("edited_message")
                         if msg and "text" in msg:
                             chat_id = msg["chat"]["id"]
+                            thread_id = msg.get("message_thread_id")
                             user_text = msg["text"].strip()
                             user_name = msg.get("from", {}).get("first_name", "Usuario")
-                            print(f">>> {user_name}: {user_text}")
+                            print(f">>> [Tema {thread_id}] {user_name}: {user_text}")
 
                             if user_text.startswith("/start"):
                                 reply = (
                                     "🤖 ¡Hola! Ya estoy conectado y listo.\n\n"
                                     "Escríbeme lo que necesites."
                                 )
-                                send_telegram_message(chat_id, reply, use_markdown=True)
+                                send_telegram_message(
+                                    chat_id,
+                                    reply,
+                                    message_thread_id=thread_id,
+                                    use_markdown=True,
+                                )
+                            elif user_text.startswith("/id_tema"):
+                                reply = f"🧵 ID de este tema: `{thread_id}`"
+                                send_telegram_message(
+                                    chat_id,
+                                    reply,
+                                    message_thread_id=thread_id,
+                                    use_markdown=True,
+                                )
                             else:
-                                reply = ask_groq(user_text, models_list)
-                                send_telegram_message(chat_id, reply, use_markdown=False)
+                                reply = generate_ai_reply(user_text, models_list)
+                                send_telegram_message(
+                                    chat_id,
+                                    reply,
+                                    message_thread_id=thread_id,
+                                    use_markdown=False,
+                                )
             elif response.status_code == 409:
                 print(">>> Conflicto HTTP 409 en Telegram. Reintentando en 15s...")
                 time.sleep(15)

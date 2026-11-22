@@ -1,25 +1,11 @@
-from datetime import datetime
 import re
 import time
 from urllib.parse import quote
 import requests
 
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    ZoneInfo = None
-
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 GROQ_MODEL = "llama-3.3-70b-versatile"
-
-
-def get_hora_espana() -> str:
-    try:
-        ahora = datetime.now(ZoneInfo("Europe/Madrid")) if ZoneInfo else datetime.now()
-    except Exception:
-        ahora = datetime.now()
-    return ahora.strftime("%d/%m/%Y %H:%M")
 
 
 def extract_youtube_query(user_text: str):
@@ -37,9 +23,7 @@ def extract_youtube_query(user_text: str):
     for patron in patrones:
         match = re.match(patron, text, flags=re.IGNORECASE)
         if match:
-            consulta = re.sub(
-                r"\s+en\s+(?:youtube|yt)$", "", match.group(1), flags=re.IGNORECASE
-            ).strip(" ?!.,\"'")
+            consulta = re.sub(r"\s+en\s+(?:youtube|yt)$", "", match.group(1), flags=re.IGNORECASE).strip(" ?!.,\"'")
             if consulta:
                 return consulta
     return None
@@ -62,14 +46,10 @@ def ask_groq(prompt):
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-    sys_msg = (
-        f"Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
-        f"Fecha y hora actual en España: {get_hora_espana()}."
-    )
     payload = {
         "model": GROQ_MODEL,
         "messages": [
-            {"role": "system", "content": sys_msg},
+            {"role": "system", "content": "Eres MANOLETE, un asistente de IA directo, claro y muy útil."},
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.7,

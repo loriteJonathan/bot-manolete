@@ -77,30 +77,34 @@ def get_system_prompt() -> str:
     )
 
 
-def build_spotify_search_link(query: str) -> str:
+def build_youtube_search_link(query: str) -> str:
     encoded_query = quote(query.strip(), safe="")
-    return f"https://open.spotify.com/search/{encoded_query}"
+    return f"https://www.youtube.com/results?search_query={encoded_query}"
 
 
-def extract_spotify_query(user_text: str):
+def extract_youtube_query(user_text: str):
     text = user_text.strip()
     lower = text.lower()
 
-    if lower.startswith("/spotify"):
+    # 1. Comando directo /yt
+    if lower.startswith("/yt") or lower.startswith("/youtube"):
         partes = text.split(maxsplit=1)
         return partes[1].strip() if len(partes) > 1 else ""
 
+    # 2. Detección en lenguaje natural
     patrones = [
-        r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar)\s+(?:en\s+spotify\s+)?(?:la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de)?\s*(.+)$",
-        r"^(?:manolete[\s,:-]*)?(?:en\s+)?spotify[\s,:-]+(.+)$",
-        r"^(.+?)\s+en\s+spotify[\?\!\.]*$",
+        r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar|quiero ver)\s+(?:en\s+youtube\s+)?(?:el\s+v[ií]deo|la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de|un\s+v[ií]deo\s+de)?\s*(.+)$",
+        r"^(?:manolete[\s,:-]*)?(?:en\s+)?(?:youtube|yt)[\s,:-]+(.+)$",
+        r"^(.+?)\s+en\s+(?:youtube|yt)[\?\!\.]*$",
     ]
 
     for patron in patrones:
         match = re.match(patron, text, flags=re.IGNORECASE)
         if match:
             consulta = match.group(1).strip(" ?!.,\"'")
-            consulta = re.sub(r"\s+en\s+spotify$", "", consulta, flags=re.IGNORECASE).strip(" ?!.,\"'")
+            consulta = re.sub(
+                r"\s+en\s+(?:youtube|yt)$", "", consulta, flags=re.IGNORECASE
+            ).strip(" ?!.,\"'")
             if consulta:
                 return consulta
 
@@ -280,9 +284,9 @@ def main():
                             if user_text.startswith("/start"):
                                 reply = (
                                     "🤖 ¡Hola! Ya estoy conectado y listo.\n\n"
-                                    "Puedes pedirme canciones de dos formas:\n"
-                                    "• /spotify <canción o artista>\n"
-                                    "• O diciéndome: \"búscame en Spotify Entre dos aguas\"\n"
+                                    "Puedes pedirme música o vídeos de dos formas:\n"
+                                    "• /yt <canción o sesión>\n"
+                                    "• O diciéndome: \"búscame en YouTube Entre dos aguas\"\n"
                                     "• /id_tema — ver el ID del tema actual"
                                 )
                                 send_telegram_message(
@@ -300,13 +304,13 @@ def main():
                                     use_markdown=False,
                                 )
                             else:
-                                spotify_query = extract_spotify_query(user_text)
-                                if spotify_query is not None:
-                                    if not spotify_query:
-                                        reply = "🎵 Dime qué canción o artista quieres buscar. Ejemplo: /spotify La Flaca"
+                                yt_query = extract_youtube_query(user_text)
+                                if yt_query is not None:
+                                    if not yt_query:
+                                        reply = "▶️ Dime qué canción o sesión quieres buscar en YouTube. Ejemplo: /yt Entre dos aguas"
                                     else:
-                                        enlace = build_spotify_search_link(spotify_query)
-                                        reply = f"🎵 Buscar \"{spotify_query}\" en Spotify:\n{enlace}"
+                                        enlace = build_youtube_search_link(yt_query)
+                                        reply = f"▶️ Buscar \"{yt_query}\" en YouTube:\n{enlace}"
                                     send_telegram_message(
                                         chat_id,
                                         reply,
@@ -326,11 +330,4 @@ def main():
                 time.sleep(15)
             else:
                 print(f">>> Telegram respondió HTTP {response.status_code}")
-                time.sleep(4)
-        except Exception as e:
-            print(f">>> Error en el bucle: {e}")
-            time.sleep(5)
-
-
-if __name__ == "__main__":
-    main()
+                time.

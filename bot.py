@@ -13,27 +13,13 @@ TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
-DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-MESES = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-]
 
-
-def get_system_prompt() -> str:
+def get_hora_espana() -> str:
     try:
         ahora = datetime.now(ZoneInfo("Europe/Madrid")) if ZoneInfo else datetime.now()
     except Exception:
         ahora = datetime.now()
-    fecha_txt = (
-        f"{DIAS[ahora.weekday()]}, {ahora.day} de {MESES[ahora.month - 1]} "
-        f"de {ahora.year} a las {ahora.strftime('%H:%M')}"
-    )
-    return (
-        "Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
-        f"La fecha y hora exacta actuales en España son: {fecha_txt}. "
-        "Usa SIEMPRE esta fecha y hora como única verdad actual."
-    )
+    return ahora.strftime("%d/%m/%Y %H:%M")
 
 
 def extract_youtube_query(user_text: str):
@@ -72,4 +58,6 @@ def send_telegram_message(chat_id, text, message_thread_id=None):
 
 def ask_groq(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
-    
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "

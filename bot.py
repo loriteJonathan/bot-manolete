@@ -8,7 +8,7 @@ except ImportError:
     ZoneInfo = None
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
-GROQ_API_KEY = "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".strip()
+GROQ_API_KEY = "Gsk_RTFdkJ6vDIu6vQYTdmKSWGdyb3FYisM7VZ5BR0ONtvym2703RK7j".strip()
 
 PREFERRED_MODELS = [
     "qwen/qwen3.8-27b",
@@ -183,20 +183,4 @@ def main():
                                     "🤖 ¡Hola! Ya estoy conectado y listo.\n\n"
                                     "Escríbeme lo que necesites."
                                 )
-                                send_telegram_message(chat_id, reply, use_markdown=True)
-                            else:
-                                reply = ask_groq(user_text, models_list)
-                                send_telegram_message(chat_id, reply, use_markdown=False)
-            elif response.status_code == 409:
-                print(">>> Conflicto HTTP 409 en Telegram. Reintentando en 15s...")
-                time.sleep(15)
-            else:
-                print(f">>> Telegram respondió HTTP {response.status_code}")
-                time.sleep(4)
-        except Exception as e:
-            print(f">>> Error en el bucle: {e}")
-            time.sleep(5)
-
-
-if __name__ == "__main__":
-    main()
+                                send_telegram_message(

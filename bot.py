@@ -1,5 +1,7 @@
 from datetime import datetime
+import re
 import time
+from urllib.parse import quote
 import requests
 
 try:
@@ -9,7 +11,7 @@ except ImportError:
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
-GEMINI_API_KEY = "AQ.Ab8RN6KGJRXUr2EXlDgsdwB_AXmGl_hEVpP4QSe6NvJZ-R8dPg".strip()
+GEMINI_API_KEY = "AQ.Ab8RN6KGJRXUr2EXlDgsdwB_AXmGl_hEVpP4QSe6NvJZ-R8dPg".strip()[span_0](start_span)[span_0](end_span)
 
 PREFERRED_GROQ_MODELS = [
     "qwen/qwen3.8-27b",
@@ -73,6 +75,38 @@ def get_system_prompt() -> str:
         "Usa SIEMPRE esta fecha y hora como única verdad actual. "
         "Nunca menciones fechas pasadas de entrenamiento ni des dos fechas distintas."
     )
+
+
+def build_spotify_search_link(query: str) -> str:
+    encoded_query = quote(query.strip(), safe="")
+    return f"https://open.spotify.com/search/{encoded_query}"
+
+
+def extract_spotify_query(user_text: str):
+    text = user_text.strip()
+    lower = text.lower()
+
+    # 1. Comando directo /spotify
+    if lower.startswith("/spotify"):
+        partes = text.split(maxsplit=1)
+        return partes[1].strip() if len(partes) > 1 else ""
+
+    # 2. Detección en lenguaje natural (ej. "búscame en spotify...", "busca la canción...", "ponme el tema...")
+    patrones = [
+        r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar)\s+(?:en\s+spotify\s+)?(?:la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de)?\s*(.+)$",
+        r"^(?:manolete[\s,:-]*)?(?:en\s+)?spotify[\s,:-]+(.+)$",
+        r"^(.+?)\s+en\s+spotify[\?\!\.]*$",
+    ]
+
+    for patron in patrones:
+        match = re.match(patron, text, flags=re.IGNORECASE)
+        if match:
+            consulta = match.group(1).strip(" ?!.,\"'")
+            consulta = re.sub(r"\s+en\s+spotify$", "", consulta, flags=re.IGNORECASE).strip(" ?!.,\"'")
+            if consulta:
+                return consulta
+
+    return None
 
 
 def clear_webhook():
@@ -248,30 +282,47 @@ def main():
                             if user_text.startswith("/start"):
                                 reply = (
                                     "🤖 ¡Hola! Ya estoy conectado y listo.\n\n"
-                                    "Escríbeme lo que necesites."
+                                    "Puedes pedirme canciones de dos formas:\n"
+                                    "• /spotify <canción o artista>\n"
+                                    "• O diciéndome: \"búscame en Spotify Entre dos aguas\"\n"
+                                    "• /id_tema — ver el ID del tema actual"
                                 )
-                                send_telegram_message(
-                                    chat_id,
-                                    reply,
-                                    message_thread_id=thread_id,
-                                    use_markdown=True,
-                                )
-                            elif user_text.startswith("/id_tema"):
-                                reply = f"🧵 ID de este tema: `{thread_id}`"
-                                send_telegram_message(
-                                    chat_id,
-                                    reply,
-                                    message_thread_id=thread_id,
-                                    use_markdown=True,
-                                )
-                            else:
-                                reply = generate_ai_reply(user_text, models_list)
                                 send_telegram_message(
                                     chat_id,
                                     reply,
                                     message_thread_id=thread_id,
                                     use_markdown=False,
                                 )
+                            elif user_text.startswith("/id_tema"):
+                                reply = f"🧵 ID de este tema: {thread_id}"
+                                send_telegram_message(
+                                    chat_id,
+                                    reply,
+                                    message_thread_id=thread_id,
+                                    use_markdown=False,
+                                )
+                            else:
+                                spotify_query = extract_spotify_query(user_text)
+                                if spotify_query is not None:
+                                    if not spotify_query:
+                                        reply = "🎵 Dime qué canción o artista quieres buscar. Ejemplo: /spotify La Flaca"
+                                    else:
+                                        enlace = build_spotify_search_link(spotify_query)
+                                        reply = f"🎵 Buscar \"{spotify_query}\" en Spotify:\n{enlace}"
+                                    send_telegram_message(
+                                        chat_id,
+                                        reply,
+                                        message_thread_id=thread_id,
+                                        use_markdown=False,
+                                    )
+                                else:
+                                    reply = generate_ai_reply(user_text, models_list)
+                                    send_telegram_message(
+                                        chat_id,
+                                        reply,
+                                        message_thread_id=thread_id,
+                                        use_markdown=False,
+                                    )
             elif response.status_code == 409:
                 print(">>> Conflicto HTTP 409 en Telegram. Reintentando en 15s...")
                 time.sleep(15)

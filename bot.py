@@ -11,7 +11,7 @@ except ImportError:
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
 GROQ_API_KEY = "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".strip()
-GEMINI_API_KEY = "AQ.Ab8RN6KGJRXUr2EXlDgsdwB_AXmGl_hEVpP4QSe6NvJZ-R8dPg".strip()[span_0](start_span)[span_0](end_span)
+GEMINI_API_KEY = "AQ.Ab8RN6KGJRXUr2EXlDgsdwB_AXmGl_hEVpP4QSe6NvJZ-R8dPg".strip()
 
 PREFERRED_GROQ_MODELS = [
     "qwen/qwen3.8-27b",
@@ -86,12 +86,10 @@ def extract_spotify_query(user_text: str):
     text = user_text.strip()
     lower = text.lower()
 
-    # 1. Comando directo /spotify
     if lower.startswith("/spotify"):
         partes = text.split(maxsplit=1)
         return partes[1].strip() if len(partes) > 1 else ""
 
-    # 2. Detección en lenguaje natural (ej. "búscame en spotify...", "busca la canción...", "ponme el tema...")
     patrones = [
         r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar)\s+(?:en\s+spotify\s+)?(?:la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de)?\s*(.+)$",
         r"^(?:manolete[\s,:-]*)?(?:en\s+)?spotify[\s,:-]+(.+)$",

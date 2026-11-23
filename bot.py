@@ -1,7 +1,5 @@
 from datetime import datetime
-import re
 import time
-from urllib.parse import quote
 import requests
 
 try:
@@ -73,29 +71,6 @@ def get_available_groq_models():
     return PREFERRED_MODELS
 
 
-def extract_youtube_query(user_text: str):
-    text = user_text.strip()
-    lower = text.lower()
-    if lower.startswith("/yt") or lower.startswith("/youtube"):
-        partes = text.split(maxsplit=1)
-        return partes[1].strip() if len(partes) > 1 else ""
-
-    patrones = [
-        r"^(?:manolete[\s,:-]*)?(?:por favor[\s,:-]*)?(?:b[uú]scame|busca|ponme|pon|encuentra|quiero escuchar|quiero ver)\s+(?:en\s+youtube\s+)?(?:el\s+v[ií]deo|la\s+canci[oó]n|el\s+tema|la\s+sesi[oó]n|m[uú]sica\s+de|un\s+tema\s+de|una\s+canci[oó]n\s+de|un\s+v[ií]deo\s+de)?\s*(.+)$",
-        r"^(?:manolete[\s,:-]*)?(?:en\s+)?(?:youtube|yt)[\s,:-]+(.+)$",
-        r"^(.+?)\s+en\s+(?:youtube|yt)[\?\!\.]*$",
-    ]
-    for patron in patrones:
-        match = re.match(patron, text, flags=re.IGNORECASE)
-        if match:
-            consulta = re.sub(
-                r"\s+en\s+(?:youtube|yt)$", "", match.group(1), flags=re.IGNORECASE
-            ).strip(" ?!.,\"'")
-            if consulta:
-                return consulta
-    return None
-
-
 def send_telegram_message(chat_id, text, message_thread_id=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text[:4000]}
@@ -123,7 +98,9 @@ def ask_groq(prompt, models_list):
                 {
                     "role": "system",
                     "content": (
-                        "Eres MANOLETE, un asistente de IA directo, claro y muy útil. "
+                        "Eres MANOLETE, un asistente de IA rápido, claro, cercano y resolutivo, "
+                        "al estilo de un asistente general completo. Contesta a cualquier pregunta "
+                        "de forma útil y directa. "
                         f"La fecha y hora exacta actuales en España son: {ahora}. "
                         "Usa SIEMPRE esta fecha y hora como única verdad actual."
                     ),
@@ -131,7 +108,7 @@ def ask_groq(prompt, models_list):
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": 512,
+            "max_tokens": 800,
         }
         try:
             r = requests.post(url, json=payload, headers=headers, timeout=20)
@@ -175,17 +152,9 @@ def main():
                             thread_id = msg.get("message_thread_id")
                             text = msg["text"].strip()
                             if text.startswith("/start"):
-                                reply = "🤖 ¡Hola! Soy MANOLETE, ¿en qué te ayudo?"
+                                reply = "🤖 ¡Hola! Soy MANOLETE, tu asistente. Pregúntame lo que quieras."
                             else:
-                                yt_q = extract_youtube_query(text)
-                                if yt_q is not None:
-                                    if not yt_q:
-                                        reply = "▶️ Ejemplo: /yt Entre dos aguas"
-                                    else:
-                                        enlace = f"https://www.youtube.com/results?search_query={quote(yt_q, safe='')}"
-                                        reply = f"▶️ Buscar \"{yt_q}\" en YouTube:\n{enlace}"
-                                else:
-                                    reply = ask_groq(text, models_list)
+                                reply = ask_groq(text, models_list)
                             send_telegram_message(chat_id, reply, message_thread_id=thread_id)
             elif r.status_code == 409:
                 time.sleep(15)

@@ -8,7 +8,7 @@ except ImportError:
     ZoneInfo = None
 
 TELEGRAM_TOKEN = "2096960353:AAFVozuRfP-FBRaqovGF8DiFF6Dm3tMXYnY".strip()
-GROQ_API_KEY = "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".strip()
+GROQ_API_KEY = "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".strip()
 
 PREFERRED_MODELS = [
     "llama-3.3-70b-versatile",
